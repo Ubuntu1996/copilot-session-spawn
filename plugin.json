@@ -1,0 +1,17 @@
+{
+  "name": "copilot-session-spawn",
+  "description": "Near-native side-topic session spawning for Copilot CLI using public hooks, command files, skills, and CLI flags.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Copilot Session Spawn"
+  },
+  "keywords": [
+    "copilot-cli",
+    "session",
+    "spawn",
+    "fork",
+    "hooks"
+  ],
+  "skills": "skills/",
+  "commands": "commands/"
+}

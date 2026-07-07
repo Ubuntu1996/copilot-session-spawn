@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "powershell": "& '<ABSOLUTE_PATH_TO_RECORD_SCRIPT>' -Event sessionStart",
+        "timeoutSec": 5
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "powershell": "& '<ABSOLUTE_PATH_TO_RECORD_SCRIPT>' -Event userPromptSubmitted",
+        "timeoutSec": 5
+      }
+    ],
+    "agentStop": [
+      {
+        "type": "command",
+        "powershell": "& '<ABSOLUTE_PATH_TO_RECORD_SCRIPT>' -Event agentStop",
+        "timeoutSec": 20
+      }
+    ],
+    "preCompact": [
+      {
+        "type": "command",
+        "powershell": "& '<ABSOLUTE_PATH_TO_RECORD_SCRIPT>' -Event preCompact",
+        "timeoutSec": 20
+      }
+    ]
+  }
+}
