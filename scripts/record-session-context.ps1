@@ -52,6 +52,10 @@ if (-not [string]::IsNullOrWhiteSpace($transcriptPath)) {
 }
 
 $metadata["sessionId"] = $sessionId
+$sessionName = Get-CopilotSessionName -SessionId $sessionId
+if (-not [string]::IsNullOrWhiteSpace($sessionName)) {
+    $metadata["name"] = $sessionName
+}
 $metadata["lastHookEvent"] = $Event
 $metadata["lastHookTimestamp"] = $timestamp
 $metadata["updatedAt"] = Get-IsoTimestamp

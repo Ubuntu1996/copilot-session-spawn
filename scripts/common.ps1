@@ -14,6 +14,36 @@ function Get-SpawnRoot {
     return (Join-Path $HOME ".copilot\spawn-sessions")
 }
 
+function Get-CopilotHome {
+    if (-not [string]::IsNullOrWhiteSpace($env:COPILOT_HOME)) {
+        return [System.IO.Path]::GetFullPath($env:COPILOT_HOME)
+    }
+
+    return (Join-Path $HOME ".copilot")
+}
+
+function Get-CopilotSessionName {
+    param([Parameter(Mandatory)][string]$SessionId)
+
+    $id = Assert-SpawnSessionId -SessionId $SessionId
+    $workspacePath = Join-Path (Join-Path (Join-Path (Get-CopilotHome) "session-state") $id) "workspace.yaml"
+    if (-not (Test-Path -LiteralPath $workspacePath)) {
+        return ""
+    }
+
+    foreach ($line in [System.IO.File]::ReadLines($workspacePath)) {
+        if ($line -match '^\s*name:\s*(.+?)\s*$') {
+            $name = $Matches[1].Trim()
+            if (($name.StartsWith('"') -and $name.EndsWith('"')) -or ($name.StartsWith("'") -and $name.EndsWith("'"))) {
+                $name = $name.Substring(1, $name.Length - 2)
+            }
+            return $name
+        }
+    }
+
+    return ""
+}
+
 function Ensure-Directory {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -242,4 +272,19 @@ function ConvertTo-PowerShellSingleQuoted {
     param([Parameter(Mandatory)][string]$Value)
 
     return "'" + ($Value -replace "'", "''") + "'"
+}
+
+function Get-MarkdownFence {
+    param([AllowNull()][string]$Text)
+
+    $max = 2
+    if ($null -ne $Text) {
+        foreach ($match in [regex]::Matches($Text, '~{3,}')) {
+            if ($match.Value.Length -gt $max) {
+                $max = $match.Value.Length
+            }
+        }
+    }
+
+    return "~" * ($max + 1)
 }
