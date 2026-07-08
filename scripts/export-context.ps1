@@ -42,12 +42,77 @@ function Add-EventMarkdown {
         $Lines.Add($Event.summary)
     }
     if (-not [string]::IsNullOrWhiteSpace($Event.content)) {
+        $eventFence = Get-MarkdownFence -Text $Event.content
         $Lines.Add("")
-        $Lines.Add("~~~text")
+        $Lines.Add("${eventFence}text")
         $Lines.Add($Event.content)
-        $Lines.Add("~~~")
+        $Lines.Add($eventFence)
     }
     $Lines.Add("")
+}
+
+function Read-JsonLines {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $records = [System.Collections.Generic.List[object]]::new()
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $records
+    }
+
+    foreach ($line in [System.IO.File]::ReadLines($Path)) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        try {
+            $records.Add(($line | ConvertFrom-Json -Depth 100))
+        }
+        catch {
+            continue
+        }
+    }
+    return $records
+}
+
+function Add-MergedChildSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$SessionDir,
+        [int]$MaxMergeChars = 3000
+    )
+
+    $mergedPath = Join-Path $SessionDir "merged-children.jsonl"
+    $records = @(Read-JsonLines -Path $mergedPath)
+    if ($records.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add("")
+    $Lines.Add("## Merged child sessions")
+    $Lines.Add("")
+    foreach ($record in $records) {
+        $childId = [string](Get-ObjectProperty -Object $record -Name "childSessionId")
+        $childName = [string](Get-ObjectProperty -Object $record -Name "childName")
+        $childTopic = [string](Get-ObjectProperty -Object $record -Name "childTopic")
+        $mergeTime = [string](Get-ObjectProperty -Object $record -Name "mergeTime")
+        $mergeContextPath = [string](Get-ObjectProperty -Object $record -Name "mergeContextPath")
+
+        $Lines.Add("### $childName")
+        $Lines.Add("")
+        $Lines.Add("- Child session ID: $childId")
+        $Lines.Add("- Child topic: $childTopic")
+        $Lines.Add("- Merge time: $mergeTime")
+        $Lines.Add("- Merge context file: $mergeContextPath")
+        if (-not [string]::IsNullOrWhiteSpace($mergeContextPath) -and (Test-Path -LiteralPath $mergeContextPath)) {
+            $mergeContextText = Get-Content -LiteralPath $mergeContextPath -Raw
+            $mergeFence = Get-MarkdownFence -Text $mergeContextText
+            $Lines.Add("")
+            $Lines.Add("${mergeFence}markdown")
+            $Lines.Add((Limit-Text -Text $mergeContextText -MaxChars $MaxMergeChars))
+            $Lines.Add($mergeFence)
+        }
+        $Lines.Add("")
+    }
 }
 
 function Get-NormalizedEvents {
@@ -197,6 +262,8 @@ $compactLines.Add("Treat this as inherited parent-session memory. Do not re-answ
 $compactLines.Add("Use prior decisions, constraints, files, commands, and unresolved questions as background.")
 $compactLines.Add("The child session is independent from the parent after this fork point.")
 $compactLines.Add("")
+Add-MergedChildSection -Lines $compactLines -SessionDir $sessionDir -MaxMergeChars 2500
+$compactLines.Add("")
 $compactLines.Add("## Older context")
 $compactLines.Add("")
 if ($olderCount -gt 0) {
@@ -218,21 +285,23 @@ if ([string]::IsNullOrWhiteSpace($latestPrompt) -or $latestPromptStatus -ne "in_
     $compactLines.Add("No parent prompt is currently marked as in progress.")
 }
 else {
+    $latestPromptFence = Get-MarkdownFence -Text $latestPrompt
     $compactLines.Add("The latest submitted parent prompt may still be in progress if this fork was created while the parent was busy:")
     $compactLines.Add("")
-    $compactLines.Add("~~~text")
+    $compactLines.Add("${latestPromptFence}text")
     $compactLines.Add((Protect-ContextText -Text (Limit-Text -Text $latestPrompt -MaxChars 8000)))
-    $compactLines.Add("~~~")
+    $compactLines.Add($latestPromptFence)
 }
 if (-not [string]::IsNullOrWhiteSpace($latestPrompt) -and $latestPromptStatus -ne "in_progress") {
+    $completedPromptFence = Get-MarkdownFence -Text $latestPrompt
     $compactLines.Add("")
     $compactLines.Add("## Latest completed parent prompt")
     $compactLines.Add("")
     $compactLines.Add("The latest submitted parent prompt appears completed and is included as background only:")
     $compactLines.Add("")
-    $compactLines.Add("~~~text")
+    $compactLines.Add("${completedPromptFence}text")
     $compactLines.Add((Protect-ContextText -Text (Limit-Text -Text $latestPrompt -MaxChars 8000)))
-    $compactLines.Add("~~~")
+    $compactLines.Add($completedPromptFence)
 }
 $compactLines.Add("")
 $compactLines.Add("## Durable work context")

@@ -13,9 +13,10 @@ This package does not modify Copilot CLI internals and does not clone private se
   - `context-full.md`
   - `context-compact.md`
   - `latest-prompt.txt`
-- Builds the context bundle on demand when spawning, then starts a child session with `copilot --session-id ... -i ...`.
+- Builds the context bundle on demand when spawning, then starts a child session with `copilot --yolo --session-id ... -i ...`.
 - Provides an idle slash-style command file (`/spawn`) and a skill (`/session-spawn`).
 - Supports busy-state spawning through an external launcher or hotkey.
+- Provides `/merge` and `copilot-merge.ps1` to import a completed child session back into the parent context.
 
 ## Important limitation
 
@@ -44,11 +45,37 @@ This removes the hook configuration only. To delete recorded local spawn data, p
 From any terminal:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\copilot-spawn.ps1 -Topic "Investigate the side topic"
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\copilot-spawn.ps1 -ParentSessionId "<parent-session-id>" -Topic "Investigate the side topic"
+```
+
+You can also provide the exact parent session name:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\copilot-spawn.ps1 -ParentSessionName "<parent-session-name>" -Topic "Investigate the side topic"
 ```
 
 Use `-PrintOnly` to print the child launch script and command without starting a new terminal.
 
+Child sessions are started with `--yolo` by default, so tool, path, and URL permissions are auto-approved in the child. Use this only for trusted working directories, trusted side-topic prompts, and trusted inherited parent context. To opt out for a specific spawn, pass `-NoYolo`.
+
 ## Idle `/spawn`
 
-When installed as a Copilot CLI plugin, `/spawn <topic>` can guide Copilot to run the launcher for idle use. It still goes through the current session's agent turn and therefore is not the busy-state path.
+When installed as a Copilot CLI plugin, `/spawn <parent-session-id-or-name> :: <topic>` can guide Copilot to run the launcher for idle use. It still goes through the current session's agent turn and therefore is not the busy-state path.
+
+## Merge a child session back into the parent
+
+When the parent session is idle, use:
+
+```text
+/merge [child-session-id|sub-topic-name|latest]
+```
+
+From a terminal, use:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\copilot-merge.ps1 -ParentSessionId "<parent-session-id>" -ChildName "Investigate the side topic"
+```
+
+If you run `/merge` inside the parent session, the active parent is refreshed automatically by hooks. If you run `copilot-merge.ps1` directly from a terminal, prefer passing `-ParentSessionId` because `active-session.json` may point at the child you used most recently.
+
+If you omit the child argument, merge chooses the latest unmerged child spawned from the active parent. The merge command creates `merge-context.md` under the parent session's `merges\<child-session-id>\` directory; the parent session should read that file as completed side-topic context.
